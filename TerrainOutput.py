@@ -14,7 +14,6 @@ class TerrainOutput(metaclass=ABCMeta):
 
     @abstractmethod
     def generate(self):
-        # Generate whatever terrain output it is
         return
 
     def save(self, filename):
@@ -145,10 +144,10 @@ class Aspect(TerrainOutput):
             for col in range(1, self.dem.shape[1] - 2):
                 z = self.get_neighbours(row, col)
 
-                # See "The Effect Of Slope Algorithms on Slope Estimates" by Robert J. Hickey 1998
+                # See http://desktop.arcgis.com/en/arcmap/10.3/tools/spatial-analyst-toolbox/how-aspect-works.htm
                 slope_ew = ((z[2] + 2 * z[3] + z[4]) - (z[0] + 2 * z[7] + z[6])) / (8 * self.cell_resolution)
                 slope_ns = ((z[0] + 2 * z[1] + z[2]) - (z[6] + 2 * z[5] + z[4])) / (8 * self.cell_resolution)
-                aspect = 57.29578 * math.atan2(slope_ns, slope_ew)
+                aspect = math.degrees(math.atan2(slope_ns, slope_ew))
 
                 if aspect < 0:
                     aspect = 90 - aspect
