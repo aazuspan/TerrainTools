@@ -92,6 +92,12 @@ class Slope(TerrainOutput):
 
                     slope_array[row][col] = slope
 
+        # Convert degrees to percent slope if needed
+        if self.units == SlopeUnits.PERCENT:
+            for row in range(slope_array.shape[0]):
+                for col in range(slope_array.shape[1]):
+                    slope_array[row][col] = math.tan(math.radians(slope_array[row][col])) * 100
+
         return slope_array
 
 
