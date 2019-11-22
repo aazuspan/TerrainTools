@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
+import cv2
 import math
 from Constants import SlopeAlgorithms, SlopeUnits
 
@@ -17,8 +18,12 @@ class TerrainOutput(metaclass=ABCMeta):
         return
 
     def save(self, filename):
-        # Save the array as the filename
-        pass
+        """
+        Save the current slope array as an image
+
+        :param filename: File name and path to save image to
+        """
+        cv2.imwrite(filename, self.array)
 
     def get_neighbours(self, row, col):
         """
@@ -82,6 +87,7 @@ class Slope(TerrainOutput):
         for row in range(1, self.dem.shape[0] - 2):
             for col in range(1, self.dem.shape[1] - 2):
                 z = self.get_neighbours(row, col)
+                slope = None
 
                 # TODO: Confirm that the index transformations are accurate
                 if self.algorithm == SlopeAlgorithms.NEIGHBORHOOD:
