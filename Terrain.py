@@ -1,17 +1,16 @@
-import numpy as np
+from matplotlib import pyplot as plt
 import cv2
 from TerrainOutput import *
 from Constants import *
 
 
 class Terrain:
-    def __init__(self, dem):
+    def __init__(self, dem, cell_resolution):
         # 2D elevation map array
         self.dem = self.load_dem(dem)
-        # These will be used to store the terrain outputs as objects once they are created
-        self.slope = None
-        self.aspect = None
-        self.hillshade = None
+        # TODO: Detect this attribute for georeferenced DEMs
+        # Spatial resolution of the cells
+        self.cell_resolution = cell_resolution
 
     @property
     def width(self):
@@ -32,7 +31,7 @@ class Terrain:
         :param file: Path to the DEM image file
         :return: A 2D numpy array created from the DEM image
         """
-        dem = cv2.imread(file)
+        dem = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
 
         # cv2 doesn't raise errors if the file is invalid
         if not isinstance(dem, np.ndarray):
@@ -40,19 +39,27 @@ class Terrain:
 
         return dem
 
-    def slope(self, algorithm=SlopeAlgorithms.MAXIMUM_DOWNHILL_SLOPE, units=SlopeUnits.DEGREES):
-        # Calculate slope and return the image
-        slope = Slope(self.dem, algorithm, units)
-        # Store the image in the terrain object
-        self.slope = slope
-        return slope
+    def calculate_slope(self, algorithm=SlopeAlgorithms.MAXIMUM_DOWNHILL_SLOPE, units=SlopeUnits.DEGREES):
+        """
+        Calculate a slope map from the elevation map
 
-    def aspect(self):
+        :param algorithm: Algorithm used to calculate slope.
+        :param units: Units of cell values in the returned array. Either degrees or percent slope.
+        :return: A 2D numpy array of slope values for the DEM
+        """
+        slope_array = Slope(self.dem, self.cell_resolution, algorithm, units)
+        return slope_array
+
+    def calculate_aspect(self):
         pass
 
-    def hillshade(self, azimuth=270, altitude=45):
+    def calculate_hillshade(self, azimuth=270, altitude=45):
         pass
 
 
-terrain = Terrain(dem="example_data\\black_canyon_dem_small.png")
-print(terrain)
+if __name__ == "__main__":
+    terrain = Terrain(dem="example_data\\black_canyon_dem_small.png", cell_resolution=30)
+    slope = terrain.calculate_slope(algorithm=SlopeAlgorithms.NEIGHBORHOOD, units=SlopeUnits.DEGREES)
+
+    plt.imshow(slope.array)
+    plt.show()

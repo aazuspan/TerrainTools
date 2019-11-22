@@ -1,10 +1,14 @@
 from abc import ABCMeta, abstractmethod
+import numpy as np
+import math
+from Constants import SlopeAlgorithms, SlopeUnits
 
 
 # Abstract class for all terrain outputs (aspect, slope, hillshade, etc)
 class TerrainOutput(metaclass=ABCMeta):
-    def __init__(self, dem):
+    def __init__(self, dem, cell_resolution):
         self.dem = dem
+        self.cell_resolution = cell_resolution
         self.array = self.generate()
 
     @abstractmethod
@@ -42,31 +46,66 @@ class TerrainOutput(metaclass=ABCMeta):
         :return: True if coordinate is outside of the DEM, false is coordinate is within the DEM
         """
 
-        if row < 0 or row > self.dem.height - 1 or col < 0 or col > self.dem.width - 1:
+        if row < 0 or row > self.dem.shape[0] - 1 or col < 0 or col > self.dem.shape[1] - 1:
             return True
         return False
 
-class Slope(TerrainOutput):
-    def __init__(self, dem, algorithm, units):
-        self.algorithm = algorithm
-        self.units = units
-        super().__init__(dem)
 
+class Slope(TerrainOutput):
+    def __init__(self, dem, cell_resolution, algorithm, units):
+        if algorithm not in (SlopeAlgorithms.NEIGHBORHOOD,
+                             SlopeAlgorithms.MAXIMUM_SLOPE,
+                             SlopeAlgorithms.MAXIMUM_DOWNHILL_SLOPE,
+                             SlopeAlgorithms.QUADRATIC_SURFACE):
+            raise ValueError('Slope algorithm is invalid')
+        else:
+            self.algorithm = algorithm
+
+        if units not in (SlopeUnits.DEGREES,
+                         SlopeUnits.PERCENT):
+            raise ValueError('Slope units are invalid')
+        else:
+            self.units = units
+
+        super().__init__(dem, cell_resolution)
+
+    # TODO: Implement other algorithms and convert the units to percent if requested
     def generate(self):
-        return
+        """
+        Generate a slope map using the given algorithm in the given units
+
+        :return: A 2D numpy array where cell values correspond to slope values
+        """
+        # The slope array must be smaller than the DEM to avoid interpolating border data
+        slope_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=float)
+
+        # TODO: Confirm that the index transformations are accurate
+        if self.algorithm == SlopeAlgorithms.NEIGHBORHOOD:
+            for row in range(1, self.dem.shape[0] - 2):
+                for col in range(1, self.dem.shape[1] - 2):
+                    z = self.get_neighbours(row, col)
+
+                    # See "The Effect Of Slope Algorithms on Slope Estimates" by Robert J. Hickey 1998
+                    slope_ew = ((z[2] + 2 * z[3] + z[4]) - (z[0] + 2 * z[7] + z[6])) / (8 * self.cell_resolution)
+                    slope_ns = ((z[0] + 2 * z[1] + z[2]) - (z[6] + 2 * z[5] + z[4])) / (8 * self.cell_resolution)
+                    slope = math.sqrt(slope_ew ** 2 + slope_ns ** 2) * 100
+
+                    slope_array[row][col] = slope
+
+        return slope_array
 
 
 class Aspect(TerrainOutput):
-    def __init__(self, dem):
-        super().__init__(dem)
+    def __init__(self, dem, cell_resolution):
+        super().__init__(dem, cell_resolution)
 
     def generate(self):
         return
 
 
 class Hillshade(TerrainOutput):
-    def __init__(self, dem, azimuth, altitude):
-        super().__init__(dem)
+    def __init__(self, dem, cell_resolution, azimuth, altitude):
+        super().__init__(dem, cell_resolution)
 
     def generate(self):
         return
