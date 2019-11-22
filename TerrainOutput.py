@@ -69,7 +69,7 @@ class Slope(TerrainOutput):
 
         super().__init__(dem, cell_resolution)
 
-    # TODO: Implement other algorithms and convert the units to percent if requested
+    # TODO: Implement other algorithms
     def generate(self):
         """
         Generate a slope map using the given algorithm in the given units
@@ -92,11 +92,37 @@ class Slope(TerrainOutput):
 
                     slope_array[row][col] = slope
 
-        # Convert degrees to percent slope if needed
-        if self.units == SlopeUnits.PERCENT:
+        elif self.algorithm == SlopeAlgorithms.MAXIMUM_SLOPE:
+            for row in range(1, self.dem.shape[0] - 2):
+                for col in range(1, self.dem.shape[1] - 2):
+                    z = self.get_neighbours(row, col)
+
+                    # NOTE: I don't love this...
+                    # Find the neighbour with the greatest elevation difference from the center cell
+                    deltas = [abs(int(z[8]) - int(zi)) for zi in z[:8]]
+                    max_delta_index = deltas.index(max(deltas))
+                    max_delta = max(deltas)
+
+                    # Diagonal cells
+                    if max_delta_index in (0, 2, 4, 6):
+                        distance = self.cell_resolution * 1.4142
+                    else:
+                        distance = self.cell_resolution
+                    slope = (max_delta / distance) * 100
+
+                    slope_array[row][col] = slope
+
+        elif self.algorithm == SlopeAlgorithms.MAXIMUM_DOWNHILL_SLOPE:
+            raise NotImplementedError
+
+        elif self.algorithm == SlopeAlgorithms.QUADRATIC_SURFACE:
+            raise NotImplementedError
+
+        # Convert percent slope to degrees if needed
+        if self.units == SlopeUnits.DEGREES:
             for row in range(slope_array.shape[0]):
                 for col in range(slope_array.shape[1]):
-                    slope_array[row][col] = math.tan(math.radians(slope_array[row][col])) * 100
+                    slope_array[row][col] = math.degrees(math.atan(slope_array[row][col]/100))
 
         return slope_array
 
