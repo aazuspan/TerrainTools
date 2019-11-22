@@ -51,15 +51,23 @@ class Terrain:
         return slope_array
 
     def calculate_aspect(self):
-        pass
+        """
+        Calculate an aspect map from the elevation map
+
+        :return: A 2D numpy array of aspect values in degrees for the DEM
+        """
+        aspect_array = Aspect(self.dem, self.cell_resolution)
+        return aspect_array
 
     def calculate_hillshade(self, azimuth=270, altitude=45):
-        pass
+        raise NotImplementedError
 
 
 if __name__ == "__main__":
     terrain = Terrain(dem="example_data\\black_canyon_dem_small.png", cell_resolution=30)
+    aspect = terrain.calculate_aspect()
     slope = terrain.calculate_slope(algorithm=SlopeAlgorithms.NEIGHBORHOOD, units=SlopeUnits.DEGREES)
 
     plt.imshow(slope.array)
+    plt.imshow(aspect.array)
     plt.show()

@@ -74,7 +74,6 @@ class Slope(TerrainOutput):
 
         super().__init__(dem, cell_resolution)
 
-    # TODO: Implement other algorithms
     def generate(self):
         """
         Generate a slope map using the given algorithm in the given units
@@ -134,7 +133,31 @@ class Aspect(TerrainOutput):
         super().__init__(dem, cell_resolution)
 
     def generate(self):
-        return
+        """
+        Generate an aspect map in degrees
+
+        :return: A 2D numpy array where cell values correspond to aspect values in degrees
+        """
+        # The aspect array must be smaller than the DEM to avoid interpolating border data
+        aspect_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=float)
+
+        for row in range(1, self.dem.shape[0] - 2):
+            for col in range(1, self.dem.shape[1] - 2):
+                z = self.get_neighbours(row, col)
+
+                # See "The Effect Of Slope Algorithms on Slope Estimates" by Robert J. Hickey 1998
+                slope_ew = ((z[2] + 2 * z[3] + z[4]) - (z[0] + 2 * z[7] + z[6])) / (8 * self.cell_resolution)
+                slope_ns = ((z[0] + 2 * z[1] + z[2]) - (z[6] + 2 * z[5] + z[4])) / (8 * self.cell_resolution)
+                aspect = 57.29578 * math.atan2(slope_ns, slope_ew)
+
+                if aspect < 0:
+                    aspect = 90 - aspect
+                elif aspect > 90:
+                    aspect = 360 - aspect + 90
+
+                aspect_array[row][col] = aspect
+
+        return aspect_array
 
 
 class Hillshade(TerrainOutput):
@@ -142,4 +165,4 @@ class Hillshade(TerrainOutput):
         super().__init__(dem, cell_resolution)
 
     def generate(self):
-        return
+        raise NotImplementedError
