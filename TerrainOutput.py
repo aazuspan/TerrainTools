@@ -79,28 +79,25 @@ class Slope(TerrainOutput):
         # The slope array must be smaller than the DEM to avoid interpolating border data
         slope_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=float)
 
-        # TODO: Combine the shared part of these algorithms to avoid repetition
-        # TODO: Confirm that the index transformations are accurate
-        if self.algorithm == SlopeAlgorithms.NEIGHBORHOOD:
-            for row in range(1, self.dem.shape[0] - 2):
-                for col in range(1, self.dem.shape[1] - 2):
-                    z = self.get_neighbours(row, col)
+        for row in range(1, self.dem.shape[0] - 2):
+            for col in range(1, self.dem.shape[1] - 2):
+                z = self.get_neighbours(row, col)
 
+                # TODO: Confirm that the index transformations are accurate
+                if self.algorithm == SlopeAlgorithms.NEIGHBORHOOD:
                     # See "The Effect Of Slope Algorithms on Slope Estimates" by Robert J. Hickey 1998
                     slope_ew = ((z[2] + 2 * z[3] + z[4]) - (z[0] + 2 * z[7] + z[6])) / (8 * self.cell_resolution)
                     slope_ns = ((z[0] + 2 * z[1] + z[2]) - (z[6] + 2 * z[5] + z[4])) / (8 * self.cell_resolution)
                     slope = math.sqrt(slope_ew ** 2 + slope_ns ** 2) * 100
 
-                    slope_array[row][col] = slope
+                elif self.algorithm in (SlopeAlgorithms.MAXIMUM_SLOPE, SlopeAlgorithms.MAXIMUM_DOWNHILL_SLOPE):
+                    if self.algorithm == SlopeAlgorithms.MAXIMUM_SLOPE:
+                        # Find the neighbour with the greatest elevation difference from the center cell
+                        deltas = [abs(int(z[8]) - int(zi)) for zi in z[:8]]
+                    # Max downhill slope is identical except that it does not take absolute value of rise difference
+                    else:
+                        deltas = [int(z[8]) - int(zi) for zi in z[:8]]
 
-        elif self.algorithm == SlopeAlgorithms.MAXIMUM_SLOPE:
-            for row in range(1, self.dem.shape[0] - 2):
-                for col in range(1, self.dem.shape[1] - 2):
-                    z = self.get_neighbours(row, col)
-
-                    # NOTE: I don't love this...
-                    # Find the neighbour with the greatest elevation difference from the center cell
-                    deltas = [abs(int(z[8]) - int(zi)) for zi in z[:8]]
                     max_delta_index = deltas.index(max(deltas))
                     max_delta = max(deltas)
 
@@ -111,45 +108,17 @@ class Slope(TerrainOutput):
                         distance = self.cell_resolution
                     slope = (max_delta / distance) * 100
 
-                    slope_array[row][col] = slope
-
-        elif self.algorithm == SlopeAlgorithms.MAXIMUM_DOWNHILL_SLOPE:
-            for row in range(1, self.dem.shape[0] - 2):
-                for col in range(1, self.dem.shape[1] - 2):
-                    z = self.get_neighbours(row, col)
-
-                    # NOTE: I don't love this...
-                    # Find the neighbour with the greatest elevation difference from the center cell
-                    deltas = [int(z[8]) - int(zi) for zi in z[:8]]
-                    max_delta_index = deltas.index(max(deltas))
-                    max_delta = abs(max(deltas))
-
-                    # Diagonal cells
-                    if max_delta_index in (0, 2, 4, 6):
-                        distance = self.cell_resolution * 1.4142
-                    else:
-                        distance = self.cell_resolution
-                    slope = (max_delta / distance) * 100
-
-                    slope_array[row][col] = slope
-
-        elif self.algorithm == SlopeAlgorithms.QUADRATIC_SURFACE:
-            for row in range(1, self.dem.shape[0] - 2):
-                for col in range(1, self.dem.shape[1] - 2):
-                    z = self.get_neighbours(row, col)
-
+                elif self.algorithm == SlopeAlgorithms.QUADRATIC_SURFACE:
                     # See "The Effect Of Slope Algorithms on Slope Estimates" by Robert J. Hickey 1998
                     g = (-int(z[7]) + int(z[3])) / (2 * self.cell_resolution)
                     h = (int(z[1]) - int(z[5])) / (2 * self.cell_resolution)
                     slope = math.sqrt(g**2 + h**2) * 100
 
-                    slope_array[row][col] = slope
+                # Convert percent slope to degrees if needed
+                if self.units == SlopeUnits.DEGREES:
+                    slope = math.degrees(math.atan(slope / 100))
 
-        # Convert percent slope to degrees if needed
-        if self.units == SlopeUnits.DEGREES:
-            for row in range(slope_array.shape[0]):
-                for col in range(slope_array.shape[1]):
-                    slope_array[row][col] = math.degrees(math.atan(slope_array[row][col]/100))
+                slope_array[row][col] = slope
 
         return slope_array
 
