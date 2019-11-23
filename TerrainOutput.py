@@ -147,12 +147,14 @@ class Aspect(TerrainOutput):
                 # See http://desktop.arcgis.com/en/arcmap/10.3/tools/spatial-analyst-toolbox/how-aspect-works.htm
                 slope_ew = ((z[2] + 2 * z[3] + z[4]) - (z[0] + 2 * z[7] + z[6])) / (8 * self.cell_resolution)
                 slope_ns = ((z[0] + 2 * z[1] + z[2]) - (z[6] + 2 * z[5] + z[4])) / (8 * self.cell_resolution)
-                aspect = math.degrees(math.atan2(slope_ns, slope_ew))
+                aspect = math.degrees(math.atan2(slope_ns, slope_ew)) + 180
 
                 if aspect < 0:
                     aspect = 90 - aspect
                 elif aspect > 90:
                     aspect = 360 - aspect + 90
+                else:
+                    aspect = 90 - aspect
 
                 aspect_array[row][col] = aspect
 
@@ -160,8 +162,39 @@ class Aspect(TerrainOutput):
 
 
 class Hillshade(TerrainOutput):
-    def __init__(self, dem, cell_resolution, azimuth, altitude):
+    def __init__(self, dem, cell_resolution, azimuth, altitude, slope, aspect):
+        self.azimuth = azimuth
+        self.altitude = altitude
+        # Slope map 2D array
+        self.slope = slope
+        # Aspect map 2D array
+        self.aspect = aspect
         super().__init__(dem, cell_resolution)
 
     def generate(self):
-        raise NotImplementedError
+        # The aspect array must be smaller than the DEM to avoid interpolating border data
+        hillshade_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=float)
+
+        # Convert light source altitude in degrees to zenith in radians
+        zenith_rad = (90 - self.altitude) * math.pi / 180
+
+        # Convert azimuth to math degrees and then to radians
+        azimuth_rad = 360 - self.azimuth + 90 * math.pi / 180
+        if azimuth_rad > 2 * math.pi:
+            azimuth_rad -= 2 * math.pi
+
+        for row in range(1, self.dem.shape[0] - 2):
+            for col in range(1, self.dem.shape[1] - 2):
+                slope_rad = math.radians(self.slope[row][col])
+                # Hillshade requires 0 to be East instead of North, so subtract 180
+                aspect_rad = math.radians(self.aspect[row][col] - 180)
+
+                # See https://pro.arcgis.com/en/pro-app/tool-reference/3d-analyst/how-hillshade-works.htm
+                hillshade = 255 * ((math.cos(zenith_rad) * math.cos(slope_rad) + (math.sin(zenith_rad) * math.sin(slope_rad) * math.cos(azimuth_rad - aspect_rad))))
+
+                if hillshade < 0:
+                    hillshade = 0
+
+                hillshade_array[row][col] = hillshade
+
+        return hillshade_array
