@@ -88,7 +88,6 @@ class Slope(TerrainOutput):
                 z = self.get_neighbours(row + 1, col + 1)
                 slope = None
 
-                # TODO: Confirm that the index transformations are accurate
                 if self.algorithm == SlopeAlgorithms.NEIGHBORHOOD:
                     # See "The Effect Of Slope Algorithms on Slope Estimates" by Robert J. Hickey 1998
                     slope_ew = ((z[2] + 2 * z[3] + z[4]) - (z[0] + 2 * z[7] + z[6])) / (8 * self.cell_resolution)
@@ -151,10 +150,8 @@ class Aspect(TerrainOutput):
                 slope_ns = ((z[0] + 2 * z[1] + z[2]) - (z[6] + 2 * z[5] + z[4])) / (8 * self.cell_resolution)
                 aspect = math.degrees(math.atan2(slope_ns, slope_ew)) + 180
 
-                if aspect < 0:
-                    aspect = 90 - aspect
-                elif aspect > 90:
-                    aspect = 360 - aspect + 90
+                if aspect > 90:
+                    aspect = 450 - aspect
                 else:
                     aspect = 90 - aspect
 
