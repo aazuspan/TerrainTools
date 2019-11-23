@@ -59,15 +59,25 @@ class Terrain:
         aspect_array = Aspect(self.dem, self.cell_resolution)
         return aspect_array
 
-    def calculate_hillshade(self, azimuth=270, altitude=45):
-        raise NotImplementedError
+    def calculate_hillshade(self, azimuth=315, altitude=45):
+        # Pre calculate slope and aspect maps
+        slope = Slope(self.dem, self.cell_resolution,
+                      algorithm=SlopeAlgorithms.NEIGHBORHOOD,
+                      units=SlopeUnits.DEGREES)
+        aspect = Aspect(self.dem, self.cell_resolution)
+
+        hillshade_array = Hillshade(self.dem, self.cell_resolution, azimuth, altitude, slope.array, aspect.array)
+        return hillshade_array
 
 
 if __name__ == "__main__":
     terrain = Terrain(dem="example_data\\black_canyon_dem_small.png", cell_resolution=30)
-    aspect = terrain.calculate_aspect()
-    slope = terrain.calculate_slope(algorithm=SlopeAlgorithms.NEIGHBORHOOD, units=SlopeUnits.DEGREES)
-
-    plt.imshow(slope.array)
-    plt.imshow(aspect.array)
+    # aspect = terrain.calculate_aspect()
+    # slope = terrain.calculate_slope(algorithm=SlopeAlgorithms.NEIGHBORHOOD, units=SlopeUnits.DEGREES)
+    hillshade = terrain.calculate_hillshade()
+    # hillshade.save("hillshade.png")
+    # aspect.save('aspect.tif')
+    # plt.imshow(slope.array)
+    # plt.imshow(aspect.array, cmap="Greys_r")
+    plt.imshow(hillshade.array, cmap="Greys_r")
     plt.show()
