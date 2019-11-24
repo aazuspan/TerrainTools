@@ -80,7 +80,7 @@ class Slope(TerrainOutput):
         :return: A 2D numpy array where cell values correspond to slope values
         """
         # The slope array must be smaller than the DEM to avoid interpolating border data
-        slope_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=float)
+        slope_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=np.uint8)
 
         for row in range(slope_array.shape[0]):
             for col in range(slope_array.shape[1]):
@@ -138,7 +138,7 @@ class Aspect(TerrainOutput):
         :return: A 2D numpy array where cell values correspond to aspect values in degrees
         """
         # The aspect array must be smaller than the DEM to avoid interpolating border data
-        aspect_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=float)
+        aspect_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=np.uint16)
 
         for row in range(aspect_array.shape[0]):
             for col in range(aspect_array.shape[1]):
@@ -172,7 +172,7 @@ class Hillshade(TerrainOutput):
 
     def generate(self):
         # The hillshade array must be smaller than the DEM to avoid interpolating border data
-        hillshade_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=float)
+        hillshade_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=np.uint8)
 
         # Convert light source altitude in degrees to zenith in radians
         zenith_rad = (90 - self.altitude) * math.pi / 180
@@ -196,8 +196,5 @@ class Hillshade(TerrainOutput):
                     hillshade = 0
 
                 hillshade_array[row][col] = hillshade
-
-        # Rescale the hillshade values from 0 to 255
-        hillshade_array = np.interp(hillshade_array, (np.min(hillshade_array), np.max(hillshade_array)), (0, 255))
 
         return hillshade_array

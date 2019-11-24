@@ -31,12 +31,12 @@ class Terrain:
         :param file: Path to the DEM image file
         :return: A 2D numpy array created from the DEM image
         """
-        dem = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+        # Load the image without rescaling bit depth or modifying bands
+        dem = cv2.imread(file, -1)
 
         # cv2 doesn't raise errors if the file is invalid
         if not isinstance(dem, np.ndarray):
             raise FileNotFoundError(f'"{file}" is not a valid image.')
-
         return dem
 
     def calculate_slope(self, algorithm=SlopeAlgorithms.MAXIMUM_DOWNHILL_SLOPE, units=SlopeUnits.DEGREES):
@@ -71,13 +71,14 @@ class Terrain:
 
 
 if __name__ == "__main__":
-    terrain = Terrain(dem="example_data\\black_canyon_dem_small.png", cell_resolution=30)
+    terrain = Terrain(dem="example_data\\black_canyon_dem_16bit.png", cell_resolution=30)
     # aspect = terrain.calculate_aspect()
     # slope = terrain.calculate_slope(algorithm=SlopeAlgorithms.NEIGHBORHOOD, units=SlopeUnits.DEGREES)
-    hillshade = terrain.calculate_hillshade()
-    # hillshade.save("hillshade.png")
+    hillshade = terrain.calculate_hillshade(azimuth=210)
+    hillshade.save("hillshade_210deg.png")
     # aspect.save('aspect.tif')
     # plt.imshow(slope.array)
     # plt.imshow(aspect.array, cmap="Greys_r")
+    # plt.show()
     plt.imshow(hillshade.array, cmap="Greys_r")
     plt.show()
