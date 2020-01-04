@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 import cv2
 import gdal
 import math
+import matplotlib.pyplot as plt
 import numpy as np
 from Constants import SlopeAlgorithms, SlopeUnits, EARTH_RADIUS_M
 
@@ -23,6 +24,9 @@ class TerrainOutput(metaclass=ABCMeta):
         :param filename: File name and path to save image to
         """
         cv2.imwrite(filename, self.array)
+
+    def preview(self):
+        raise NotImplementedError
 
     def get_neighbours(self, row, col):
         """
@@ -303,20 +307,36 @@ class ElevationProfile(TerrainOutput):
         self.transect = None
         super().__init__(terrain)
 
-    # TODO: Add proper documentation and clean this up
+    def preview(self):
+        pass
+
+    def save(self, filename):
+        raise NotImplementedError
+
     def generate(self):
+        """
+        Generate a table of values representing an elevation profile between two points (elevation in meters versus
+        distance in meters)
+
+        :return: list of tuples of float values
+            Elevation profile data in format [(distance from start point, elevation)]
+        """
         self.transect = self.Transect(self.pt1, self.pt2)
 
-        output_image = "C:\\Users\\az\\Desktop\\test3_strip_TerrainTools.tif"
+        tmp_output = "tmp_data\\tmp_elev_prof.tif"
 
-        # TODO: Figure out how to run this without saving an output image
-        output = gdal.Warp(output_image, self.terrain.dem_image, dstSRS=self.transect.proj,
+        output = gdal.Warp(tmp_output, self.terrain.dem_image, dstSRS=self.transect.proj,
                            outputBounds=self.transect.bounds)
+
         # Get the elevation values for the swath
         elevation_data = output.GetRasterBand(1).ReadAsArray()[0]
-        # Number of data points in the elevation profile
-        profile_pts = len(elevation_data)
         # X values that correspond to each Y value
-        dist_data = [self.transect.length / profile_pts * i for i in range(len(elevation_data))]
-        # Return as a list of tuples (distance, elevation)
-        return list(zip(dist_data, elevation_data))
+        distance_data = [self.transect.length / len(elevation_data) * i for i in range(len(elevation_data))]
+
+        # Clear the Warp object to remove file locks
+        del output
+        # Delete the temporary output file
+        gdal.GetDriverByName('GTiff').Delete(tmp_output)
+
+        return list(zip(distance_data, elevation_data))
+
