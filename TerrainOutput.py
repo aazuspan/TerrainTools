@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import cv2
+import gdal
 import math
 import numpy as np
 from Constants import SlopeAlgorithms, SlopeUnits, EARTH_RADIUS_M
@@ -302,6 +303,20 @@ class ElevationProfile(TerrainOutput):
         self.transect = None
         super().__init__(terrain)
 
+    # TODO: Add proper documentation and clean this up
     def generate(self):
-        raise NotImplementedError
+        self.transect = self.Transect(self.pt1, self.pt2)
 
+        output_image = "C:\\Users\\az\\Desktop\\test3_strip_TerrainTools.tif"
+
+        # TODO: Figure out how to run this without saving an output image
+        output = gdal.Warp(output_image, self.terrain.dem_image, dstSRS=self.transect.proj,
+                           outputBounds=self.transect.bounds)
+        # Get the elevation values for the swath
+        elevation_data = output.GetRasterBand(1).ReadAsArray()[0]
+        # Number of data points in the elevation profile
+        profile_pts = len(elevation_data)
+        # X values that correspond to each Y value
+        dist_data = [self.transect.length / profile_pts * i for i in range(len(elevation_data))]
+        # Return as a list of tuples (distance, elevation)
+        return list(zip(dist_data, elevation_data))
