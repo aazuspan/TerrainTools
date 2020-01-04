@@ -7,9 +7,8 @@ from Constants import SlopeAlgorithms, SlopeUnits, EARTH_RADIUS_M
 
 # Abstract class for all terrain outputs (aspect, slope, hillshade, etc)
 class TerrainOutput(metaclass=ABCMeta):
-    def __init__(self, dem, cell_resolution):
-        self.dem = dem
-        self.cell_resolution = cell_resolution
+    def __init__(self, terrain):
+        self.terrain = terrain
         self.array = self.generate()
 
     @abstractmethod
@@ -38,7 +37,7 @@ class TerrainOutput(metaclass=ABCMeta):
         neighbours = []
         for offset in offsets:
             if not self.is_out_of_bounds(row=row + offset[0], col=col + offset[1]):
-                neighbours.append(self.dem[row + offset[0]][col + offset[1]])
+                neighbours.append(self.terrain.dem[row + offset[0]][col + offset[1]])
 
         return neighbours
 
@@ -50,13 +49,13 @@ class TerrainOutput(metaclass=ABCMeta):
         :return: True if coordinate is outside of the DEM, false is coordinate is within the DEM
         """
 
-        if row < 0 or row > self.dem.shape[0] - 1 or col < 0 or col > self.dem.shape[1] - 1:
+        if row < 0 or row > self.terrain.dem.shape[0] - 1 or col < 0 or col > self.terrain.dem.shape[1] - 1:
             return True
         return False
 
 
 class Slope(TerrainOutput):
-    def __init__(self, dem, cell_resolution, algorithm, units):
+    def __init__(self, terrain, algorithm, units):
         if algorithm not in (SlopeAlgorithms.NEIGHBORHOOD,
                              SlopeAlgorithms.MAXIMUM_SLOPE,
                              SlopeAlgorithms.MAXIMUM_DOWNHILL_SLOPE,
@@ -71,7 +70,7 @@ class Slope(TerrainOutput):
         else:
             self.units = units
 
-        super().__init__(dem, cell_resolution)
+        super().__init__(terrain)
 
     def generate(self):
         """
@@ -80,7 +79,7 @@ class Slope(TerrainOutput):
         :return: A 2D numpy array where cell values correspond to slope values
         """
         # The slope array must be smaller than the DEM to avoid interpolating border data
-        slope_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=np.uint8)
+        slope_array = np.empty((self.terrain.dem.shape[0] - 2, self.terrain.dem.shape[1] - 2), dtype=np.uint8)
 
         for row in range(slope_array.shape[0]):
             for col in range(slope_array.shape[1]):
@@ -90,8 +89,8 @@ class Slope(TerrainOutput):
 
                 if self.algorithm == SlopeAlgorithms.NEIGHBORHOOD:
                     # See "The Effect Of Slope Algorithms on Slope Estimates" by Robert J. Hickey 1998
-                    slope_ew = ((z[2] + 2 * z[3] + z[4]) - (z[0] + 2 * z[7] + z[6])) / (8 * self.cell_resolution)
-                    slope_ns = ((z[0] + 2 * z[1] + z[2]) - (z[6] + 2 * z[5] + z[4])) / (8 * self.cell_resolution)
+                    slope_ew = ((z[2] + 2 * z[3] + z[4]) - (z[0] + 2 * z[7] + z[6])) / (8 * self.terrain.cell_resolution)
+                    slope_ns = ((z[0] + 2 * z[1] + z[2]) - (z[6] + 2 * z[5] + z[4])) / (8 * self.terrain.cell_resolution)
                     slope = math.sqrt(slope_ew ** 2 + slope_ns ** 2) * 100
 
                 elif self.algorithm in (SlopeAlgorithms.MAXIMUM_SLOPE, SlopeAlgorithms.MAXIMUM_DOWNHILL_SLOPE):
@@ -107,15 +106,15 @@ class Slope(TerrainOutput):
 
                     # Diagonal cells
                     if max_delta_index in (0, 2, 4, 6):
-                        distance = self.cell_resolution * 1.4142
+                        distance = self.terrain.cell_resolution * 1.4142
                     else:
-                        distance = self.cell_resolution
+                        distance = self.terrain.cell_resolution
                     slope = (max_delta / distance) * 100
 
                 elif self.algorithm == SlopeAlgorithms.QUADRATIC_SURFACE:
                     # See "The Effect Of Slope Algorithms on Slope Estimates" by Robert J. Hickey 1998
-                    g = (-int(z[7]) + int(z[3])) / (2 * self.cell_resolution)
-                    h = (int(z[1]) - int(z[5])) / (2 * self.cell_resolution)
+                    g = (-int(z[7]) + int(z[3])) / (2 * self.terrain.cell_resolution)
+                    h = (int(z[1]) - int(z[5])) / (2 * self.terrain.cell_resolution)
                     slope = math.sqrt(g**2 + h**2) * 100
 
                 # Convert percent slope to degrees if needed
@@ -128,8 +127,8 @@ class Slope(TerrainOutput):
 
 
 class Aspect(TerrainOutput):
-    def __init__(self, dem, cell_resolution):
-        super().__init__(dem, cell_resolution)
+    def __init__(self, terrain):
+        super().__init__(terrain)
 
     def generate(self):
         """
@@ -138,7 +137,7 @@ class Aspect(TerrainOutput):
         :return: A 2D numpy array where cell values correspond to aspect values in degrees
         """
         # The aspect array must be smaller than the DEM to avoid interpolating border data
-        aspect_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=np.uint16)
+        aspect_array = np.empty((self.terrain.dem.shape[0] - 2, self.terrain.dem.shape[1] - 2), dtype=np.uint16)
 
         for row in range(aspect_array.shape[0]):
             for col in range(aspect_array.shape[1]):
@@ -146,8 +145,8 @@ class Aspect(TerrainOutput):
                 z = self.get_neighbours(row + 1, col + 1)
 
                 # See http://desktop.arcgis.com/en/arcmap/10.3/tools/spatial-analyst-toolbox/how-aspect-works.htm
-                slope_ew = ((z[2] + 2 * z[3] + z[4]) - (z[0] + 2 * z[7] + z[6])) / (8 * self.cell_resolution)
-                slope_ns = ((z[0] + 2 * z[1] + z[2]) - (z[6] + 2 * z[5] + z[4])) / (8 * self.cell_resolution)
+                slope_ew = ((z[2] + 2 * z[3] + z[4]) - (z[0] + 2 * z[7] + z[6])) / (8 * self.terrain.cell_resolution)
+                slope_ns = ((z[0] + 2 * z[1] + z[2]) - (z[6] + 2 * z[5] + z[4])) / (8 * self.terrain.cell_resolution)
                 aspect = math.degrees(math.atan2(slope_ns, slope_ew)) + 180
 
                 if aspect > 90:
@@ -161,18 +160,18 @@ class Aspect(TerrainOutput):
 
 
 class Hillshade(TerrainOutput):
-    def __init__(self, dem, cell_resolution, azimuth, altitude, slope, aspect):
+    def __init__(self, terrain, azimuth, altitude, slope, aspect):
         self.azimuth = azimuth
         self.altitude = altitude
         # Slope map 2D array
         self.slope = slope
         # Aspect map 2D array
         self.aspect = aspect
-        super().__init__(dem, cell_resolution)
+        super().__init__(terrain)
 
     def generate(self):
         # The hillshade array must be smaller than the DEM to avoid interpolating border data
-        hillshade_array = np.empty((self.dem.shape[0] - 2, self.dem.shape[1] - 2), dtype=np.uint8)
+        hillshade_array = np.empty((self.terrain.dem.shape[0] - 2, self.terrain.dem.shape[1] - 2), dtype=np.uint8)
 
         # Convert light source altitude in degrees to zenith in radians
         zenith_rad = (90 - self.altitude) * math.pi / 180
@@ -227,7 +226,7 @@ class ElevationProfile(TerrainOutput):
             self.start = start
             self.end = end
             # TODO: Replace this with a calculated value to ensure 1 pixel width
-            self.swath_width = 100
+            self.swath_width = 500
 
         @staticmethod
         def haversine_length(point1, point2):
@@ -250,7 +249,7 @@ class ElevationProfile(TerrainOutput):
 
             phi1, phi2 = math.radians(point1.lat), math.radians(point2.lat)
             dphi = math.radians(point2.lat - point1.lat)
-            dlambda = math.radians(point2.long - point1.long)
+            dlambda = math.radians(point2.lng - point1.lng)
 
             a = math.sin(dphi / 2) ** 2 + \
                 math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
@@ -266,7 +265,7 @@ class ElevationProfile(TerrainOutput):
             str
                 A valid dstSRS parameter for gdal.Warp
             """
-            return f'+proj=tpeqd +lon_1={self.start.long} +lat_1={self.start.lat} +lon_2={self.end.long} +lat_2={self.end.lat}'
+            return f'+proj=tpeqd +lon_1={self.start.lng} +lat_1={self.start.lat} +lon_2={self.end.lng} +lat_2={self.end.lat}'
 
         @property
         def length(self):
@@ -285,22 +284,23 @@ class ElevationProfile(TerrainOutput):
             bounds_tuple = (int(-self.length / 2), -self.swath_width, int(self.length / 2), self.swath_width)
             return bounds_tuple
 
-    def __init__(self, dem, cell_resolution, pt1, pt2):
+    def __init__(self, terrain, pt1, pt2):
         """
         An elevation profile between two points
-        :param dem: np.ndarray
-            A two-dimensional array of elevation values
-        :param cell_resolution: int
-            The size of each cell in meters
+        :param terrain: Terrain
+            A Terrain object that contains the relevant DEM
         :param pt1: tuple of ints (latitude, longitude)
             The start point of the elevation profile
         :param pt2: tuple of ints (latitude, longitude)
             The end point of the elevation profile
+        :param transect: Transect
+            A transect between the two points, created by self.generate()
         """
         # Convert the point tuples into point objects
         self.pt1 = self.Point(pt1[0], pt1[1])
         self.pt2 = self.Point(pt2[0], pt2[1])
-        super().__init__(dem, cell_resolution)
+        self.transect = None
+        super().__init__(terrain)
 
     def generate(self):
         raise NotImplementedError

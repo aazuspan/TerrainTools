@@ -1,11 +1,11 @@
-from matplotlib import pyplot as plt
-import cv2
+import gdal
 from TerrainOutput import *
 from Constants import *
 
 
 class Terrain:
     def __init__(self, dem, cell_resolution):
+        self.dem_image = gdal.Open(dem)
         # 2D elevation map array
         self.dem = self.load_dem(dem)
         # TODO: Detect this attribute for georeferenced DEMs
@@ -47,7 +47,7 @@ class Terrain:
         :param units: Units of cell values in the returned array. Either degrees or percent slope.
         :return: A 2D numpy array of slope values for the DEM
         """
-        slope_array = Slope(self.dem, self.cell_resolution, algorithm, units)
+        slope_array = Slope(self, algorithm, units)
         return slope_array
 
     def calculate_aspect(self):
@@ -56,17 +56,17 @@ class Terrain:
 
         :return: A 2D numpy array of aspect values in degrees for the DEM
         """
-        aspect_array = Aspect(self.dem, self.cell_resolution)
+        aspect_array = Aspect(self)
         return aspect_array
 
     def calculate_hillshade(self, azimuth=315, altitude=45):
         # Pre calculate slope and aspect maps
-        slope = Slope(self.dem, self.cell_resolution,
+        slope = Slope(self,
                       algorithm=SlopeAlgorithms.NEIGHBORHOOD,
                       units=SlopeUnits.DEGREES)
-        aspect = Aspect(self.dem, self.cell_resolution)
+        aspect = Aspect(self)
 
-        hillshade_array = Hillshade(self.dem, self.cell_resolution, azimuth, altitude, slope.array, aspect.array)
+        hillshade_array = Hillshade(self, azimuth, altitude, slope.array, aspect.array)
         return hillshade_array
 
     def create_elevation_profile(self, pt1, pt2):
@@ -80,5 +80,5 @@ class Terrain:
         :return:
             A 2D numpy array of elevation versus distance along a line
         """
-        elevation_profile = ElevationProfile(self.dem, self.cell_resolution, pt1, pt2)
+        elevation_profile = ElevationProfile(self, pt1, pt2)
         return elevation_profile
