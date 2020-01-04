@@ -68,3 +68,17 @@ class Terrain:
 
         hillshade_array = Hillshade(self.dem, self.cell_resolution, azimuth, altitude, slope.array, aspect.array)
         return hillshade_array
+
+    def create_elevation_profile(self, pt1, pt2):
+        """
+        Create an elevation profile between two points
+
+        :param pt1: tuple of ints (latitude, longitude)
+            The geographic coordinates of the first point
+        :param pt2: tuple of ints (latitude, longitude)
+            The geographic coordinates of the second point
+        :return:
+            A 2D numpy array of elevation versus distance along a line
+        """
+        elevation_profile = ElevationProfile(self.dem, self.cell_resolution, pt1, pt2)
+        return elevation_profile

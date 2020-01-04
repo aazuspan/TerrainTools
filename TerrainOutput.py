@@ -198,3 +198,13 @@ class Hillshade(TerrainOutput):
                 hillshade_array[row][col] = hillshade
 
         return hillshade_array
+
+
+class ElevationProfile(TerrainOutput):
+    def __init__(self, dem, cell_resolution, pt1, pt2):
+        self.pt1 = pt1
+        self.pt2 = pt2
+        super().__init__(dem, cell_resolution)
+
+    def generate(self):
+        raise NotImplementedError
