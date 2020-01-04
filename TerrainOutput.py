@@ -19,14 +19,19 @@ class TerrainOutput(metaclass=ABCMeta):
 
     def save(self, filename):
         """
-        Save the current slope array as an image
+        Save the current array as an image
 
         :param filename: File name and path to save image to
         """
         cv2.imwrite(filename, self.array)
 
     def preview(self):
-        raise NotImplementedError
+        """
+        Preview the current array in pyplot
+        :return:
+        """
+        plt.imshow(self.array)
+        plt.show()
 
     def get_neighbours(self, row, col):
         """
@@ -307,11 +312,19 @@ class ElevationProfile(TerrainOutput):
         self.transect = None
         super().__init__(terrain)
 
-    def preview(self):
-        pass
+    def preview(self, save=False, filename=None):
+        """Preview a line graph of the elevation profile"""
+        plot = plt.plot(*zip(*self.array))
+        plt.title('Elevation Profile')
+        plt.xlabel('Distance (m)')
+        plt.ylabel('Elevation (m)')
+        if save and filename:
+            plt.savefig(filename)
+        plt.show()
 
     def save(self, filename):
-        raise NotImplementedError
+        """Save the line graph as an image"""
+        self.preview(save=True, filename=filename)
 
     def generate(self):
         """
