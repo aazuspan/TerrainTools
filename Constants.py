@@ -8,3 +8,6 @@ class SlopeAlgorithms:
 class SlopeUnits:
     DEGREES = 0
     PERCENT = 1
+
+
+EARTH_RADIUS_M = 6372800

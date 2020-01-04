@@ -1,8 +1,8 @@
 from abc import ABCMeta, abstractmethod
-import numpy as np
 import cv2
 import math
-from Constants import SlopeAlgorithms, SlopeUnits
+import numpy as np
+from Constants import SlopeAlgorithms, SlopeUnits, EARTH_RADIUS_M
 
 
 # Abstract class for all terrain outputs (aspect, slope, hillshade, etc)
@@ -201,10 +201,107 @@ class Hillshade(TerrainOutput):
 
 
 class ElevationProfile(TerrainOutput):
+    class Point:
+        def __init__(self, lat, lng):
+            """
+            A geographic point
+            :param lat: float
+                Latitude of the point in WGS84
+            :param lng: float
+                Longitude of the point in WGS84
+            """
+            self.lat = lat
+            self.lng = lng
+
+    class Transect:
+        def __init__(self, start, end):
+            """
+            A 2D line between two Points
+            :param start: Point
+                The start point of the line
+            :param end: Point
+                The end point of the line
+            :param swath_width: int
+                The width of the transect swath, in meters
+            """
+            self.start = start
+            self.end = end
+            # TODO: Replace this with a calculated value to ensure 1 pixel width
+            self.swath_width = 100
+
+        @staticmethod
+        def haversine_length(point1, point2):
+            """
+            Calculate distance between two geographic points using the Haversine algorithm
+
+            Parameters
+            ----------
+            point1 : Point
+                A geographic point with latitude and longitude
+            point2 : Point
+                A geographic point with latitude and longitude
+
+            Returns
+            -------
+            float
+                Distance between two points in meters
+            """
+            R = EARTH_RADIUS_M
+
+            phi1, phi2 = math.radians(point1.lat), math.radians(point2.lat)
+            dphi = math.radians(point2.lat - point1.lat)
+            dlambda = math.radians(point2.long - point1.long)
+
+            a = math.sin(dphi / 2) ** 2 + \
+                math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+
+            return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        @property
+        def proj(self):
+            """Format a dstSRS parameter string to create a custom Two-Point Equidistant Projection between the points
+
+            Return
+            ------
+            str
+                A valid dstSRS parameter for gdal.Warp
+            """
+            return f'+proj=tpeqd +lon_1={self.start.long} +lat_1={self.start.lat} +lon_2={self.end.long} +lat_2={self.end.lat}'
+
+        @property
+        def length(self):
+            """Calculate and return the distance in meters between the points"""
+            return self.haversine_length(self.start, self.end)
+
+        @property
+        def bounds(self):
+            """Calculate the bounds to create a swath between the points, 1 pixel wide, using the custom TPEQD projection
+
+            Return
+            ------
+            tuple of ints
+                A valid outputBounds parameter for gdal.Warp, giving the bounds for a 1 pixel wide swath between the points
+            """
+            bounds_tuple = (int(-self.length / 2), -self.swath_width, int(self.length / 2), self.swath_width)
+            return bounds_tuple
+
     def __init__(self, dem, cell_resolution, pt1, pt2):
-        self.pt1 = pt1
-        self.pt2 = pt2
+        """
+        An elevation profile between two points
+        :param dem: np.ndarray
+            A two-dimensional array of elevation values
+        :param cell_resolution: int
+            The size of each cell in meters
+        :param pt1: tuple of ints (latitude, longitude)
+            The start point of the elevation profile
+        :param pt2: tuple of ints (latitude, longitude)
+            The end point of the elevation profile
+        """
+        # Convert the point tuples into point objects
+        self.pt1 = self.Point(pt1[0], pt1[1])
+        self.pt2 = self.Point(pt2[0], pt2[1])
         super().__init__(dem, cell_resolution)
 
     def generate(self):
         raise NotImplementedError
+
